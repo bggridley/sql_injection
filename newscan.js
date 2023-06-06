@@ -32,6 +32,16 @@ function passThrough(node) {
                     console.log('Found potentially unescaped identifiers: ', idList)
                 }
 
+            } else if (name == 'createConnection') {
+                var val = node.expression
+
+                for(var i = 0; i < val.arguments[0].properties.length; i++) {
+                    var prop = val.arguments[0].properties[i]
+
+                    if(prop.key.name == 'multipleStatements' && (prop.value.value == true || prop.value.value == 'true')) {
+                        console.log('Found multiple statements vulnerability')
+                    }
+                }
             } else {
                 pass(node.expression.arguments)
             }
