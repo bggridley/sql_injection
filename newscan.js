@@ -10,11 +10,6 @@ var ast = esprima.parse(fs.readFileSync(filename).toString());
 // start at the highest level, and traverse down.
 // if has children / can be traversed through, call pass on it
 function passThrough(node) {
-
-    function handleExpression(expression) {
-        
-    }
-
     if (node.type == 'Program') {
         pass(node.body)
     } else if (node.expression) { // contains a call expression
