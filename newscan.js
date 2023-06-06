@@ -10,9 +10,14 @@ var ast = esprima.parse(fs.readFileSync(filename).toString());
 // start at the highest level, and traverse down.
 // if has children / can be traversed through, call pass on it
 function passThrough(node) {
+
+    function handleExpression(expression) {
+        
+    }
+
     if (node.type == 'Program') {
         pass(node.body)
-    } else if (node.type == 'ExpressionStatement') {
+    } else if (node.expression) { // contains a call expression
 
         // ensure that these properties exist to avoid errors
         if (node.expression.callee && node.expression.callee.property) {
@@ -23,7 +28,7 @@ function passThrough(node) {
                 // perform scanThrough to collect all identifiers
                 idList = scanThrough(node)
 
-                if(idList.length > 0) {
+                if (idList.length > 0) {
                     console.log('Found potentially unescaped identifiers: ', idList)
                 }
 
@@ -35,7 +40,7 @@ function passThrough(node) {
         passThrough(node.body)
     } else if (node.type == 'BlockStatement') {
         pass(node.body)
-    } else if (node.type == 'IfStatement') {      
+    } else if (node.type == 'IfStatement') {
         if (node.consequent) {
             pass(node.consequent.body)
         }
@@ -52,7 +57,7 @@ function passThrough(node) {
             var list = []
             for (var c in child) {
 
-                if (!createsNewScope(child[c])) {
+                if (!createsNewScope(child[c]) && !declaratorScope(child[c])) {
                     // extremely important that these var lists are created, and that parent is assigned
                     // allows for traversal to higher scopes
                     child[c].parent = node
@@ -66,17 +71,29 @@ function passThrough(node) {
 
                     // continue traversing down if this child will create a new node
                     passThrough(child[c], list)
+                } else if(declaratorScope(child[c])) {
+
+                    // sort of a hack, but this works
+                    // passThrough will treat the variableDeclaration as if it is an expression statement
+                    child[c].declarations[0].expression = child[c].declarations[0].init
+                    child[c].declarations[0].vars = list;
+
+                    passThrough(child[c].declarations[0], list)
                 }
             }
         }
     }
 }
 
+function declaratorScope(node) {
+    return (node.type == 'VariableDeclaration' && node.declarations && node.declarations[0].init.type == 'CallExpression')
+}
+
 // create a list, starting at the entry point (which is the first argument of an execute or query call)
 function scanThrough(node, list) {
     // remove the escaped identifiers from the main list at the end
-    escaped = [] 
-    list = [] 
+    escaped = []
+    list = []
 
     // a final bit of processing after the node is passed through from passThrough
     if (node.expression && node.expression.type == 'CallExpression') {
@@ -157,7 +174,7 @@ function scanThrough(node, list) {
         // at the current level
         // and also, by recursively traversingVars upwards, we will hit all of the variables
         // that are in a higher scope than the current variables
-        
+
         traverseVars(n, l)
     }
 }
@@ -170,7 +187,7 @@ function createsNewScope(node) {
     return node.type == 'FunctionDeclaration' ||
         node.type == 'FunctionExpression' ||
         node.type == 'ArrowFunctionExpression' ||
-        node.type == 'Program' || 
+        node.type == 'Program' ||
         node.type == 'ExpressionStatement' ||
         node.type == 'IfStatement';
 }
