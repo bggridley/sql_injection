@@ -5,7 +5,7 @@ Required node packages:
 - fs
 - readline-sync
 
-snip.js is provided as a sample file.
+snip.js, snip2.js, snip3.js are provided as sample files.
 
 To run the original scanner, use
 
