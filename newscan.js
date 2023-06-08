@@ -15,8 +15,11 @@ function passThrough(node) {
     } else if (node.expression) { // contains a call expression
 
         // ensure that these properties exist to avoid errors
-        if (node.expression.callee && node.expression.callee.property) {
-            var name = node.expression.callee.property.name;
+
+        var exp = node.expression.type != 'AwaitExpression' ? node.expression : node.expression.argument
+
+        if (exp.callee && exp.callee.property) {
+            var name = exp.callee.property.name;
 
             // found a statement where .query or .execute is called
             if (name == 'query' || name == 'execute') {
@@ -28,7 +31,7 @@ function passThrough(node) {
                 }
 
             } else if (name == 'createConnection') {
-                var val = node.expression
+                var val = exp
 
                 for(var i = 0; i < val.arguments[0].properties.length; i++) {
                     var prop = val.arguments[0].properties[i]
@@ -41,7 +44,7 @@ function passThrough(node) {
                 pass(node.expression.arguments)
             }
         }
-    } else if (node.type == 'ArrowFunctionExpression') {
+    } else if (node.type == 'ArrowFunctionExpression' || node.type == 'AsyncArrowFunctionExpreession' || node.type == 'FunctionExpression' || node.type == 'AsyncFunctionExpression') {
         passThrough(node.body)
     } else if (node.type == 'BlockStatement') {
         pass(node.body)
@@ -53,6 +56,8 @@ function passThrough(node) {
         if (node.alternate) {
             pass(node.alternate.body)
         }
+    } else if (node.type == 'TryStatement') {
+        pass(node.block.body)
     }
 
     function pass(child) {
@@ -91,7 +96,7 @@ function passThrough(node) {
 }
 
 function declaratorScope(node) {
-    return (node.type == 'VariableDeclaration' && node.declarations && node.declarations[0].init.type == 'CallExpression')
+    return (node.type == 'VariableDeclaration' && node.declarations && (node.declarations[0].init.type == 'CallExpression' || node.declarations[0].init.type == 'AwaitExpression'))
 }
 
 // create a list, starting at the entry point (which is the first argument of an execute or query call)
@@ -99,10 +104,13 @@ function scanThrough(node, list) {
     // remove the escaped identifiers from the main list at the end
     escaped = []
     list = []
-
     // a final bit of processing after the node is passed through from passThrough
-    if (node.expression && node.expression.type == 'CallExpression') {
-        var arg1 = node.expression.arguments[0]
+    if (node.expression && (node.expression.type == 'CallExpression' || node.expression.type == 'AwaitExpression')) {
+
+        var type = node.expression.type
+
+        
+        var arg1 = type == 'CallExpression' ? node.expression.arguments[0] : node.expression.argument.arguments[0]
 
         arg1.parent = node
 
@@ -194,7 +202,7 @@ function createsNewScope(node) {
         node.type == 'ArrowFunctionExpression' ||
         node.type == 'Program' ||
         node.type == 'ExpressionStatement' ||
-        node.type == 'IfStatement';
+        node.type == 'IfStatement' || node.type == 'TryStatement';
 }
 
 // begin passing through the AST acquired through esprima
