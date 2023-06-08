@@ -1,3 +1,4 @@
+// https://github.com/cawilson1/sql_injection_mysql_node/blob/master/index.js
 require("dotenv").config();
 const express = require("express");
 const sql = require("mysql2/promise");
